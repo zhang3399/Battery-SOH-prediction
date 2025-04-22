@@ -1,0 +1,17 @@
+data:
+  sequence_length: 20
+  test_ratio: 0.2
+  target_col: "soh"
+
+model:
+  input_size: 5
+  hidden_size: 128
+  num_layers: 2
+  dropout: 0.3
+  output_size: 1
+
+training:
+  epochs: 300
+  batch_size: 8
+  learning_rate: 0.001
+  patience: 20
