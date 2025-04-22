@@ -4,11 +4,14 @@
 
 **数据说明：**
 一组四个锂离子电池（#5、6、7和18）在室温下经历了3种不同的操作模式（充电、放电和阻抗）。以1.5A的恒流（CC）模式充电，直到电池电压达到4.2V，然后以恒压（CV）模式继续充电，直到充电电流降至20mA。以2A的恒定电流（CC）水平进行放电，直到电池5、6、7和18的电池电压分别降至2.7V、2.5V、2.2V和2.5V。通过电化学阻抗谱（EIS）从0.1Hz到5kHz的频率扫描进行阻抗测量。重复的充电和放电循环导致电池加速老化，而阻抗测量则提供了对随着老化过程而变化的内部电池参数的洞察。当电池达到寿命终止（EOL）标准时，实验停止，即额定容量下降30%（从2Ahr降至1.4Ahr）。该数据集可用于预测剩余电荷（对于给定的放电循环）和剩余使用寿命（RUL）。
-**文件夹：**
-B0005.mat 5号电池数据
-B0006.mat 6号电池数据
-B0007.mat 7号电池数据
-B0018.18号电池的最大数据
+**文件清单：**
+(项目目录下path.xlsx统计的充放电循环周期)
+| 文件名        | 电池编号 | 循环次数 | 数据规模  |
+|---------------|----------|----------|-----------|
+| `B0005.mat`   | 5        | 167      | 15.2MB     |
+| `B0006.mat`   | 6        | 167      | 15.2MB     |
+| `B0007.mat`   | 7        | 167      | 15.3MB     |
+| `B0018.mat`   | 18       | 132      | 8.1MB     |
 
 **数据结构：**
 
@@ -42,6 +45,35 @@ B0018.18号电池的最大数据
         - Rct：估计的电荷转移电阻（欧姆）
 
 ## 2. 数据预处理
+实验发现，将数据的前一部分用于训练，后一部分用于测试，预测精度高一些。如果采用一组新的电池如B0018号则效果会略微下降，这可能是数据量还是太少的原因，模型泛化能力不足。
+
+**提取数据：**
+```python
+
+def extract_operation_features(cycle):
+    """提取单个操作的特征"""
+    features = {}
+    data = cycle['data']
+    try:
+        if cycle['type'] == 'charge':
+            # 提取充电特征
+            features.update({
+                'cc_time': np.argmax(data['Voltage_measured'] >= 4.2) / len(data['Time']),  # 恒流阶段占比
+                'current_charge_std': np.std(data['Current_measured']),
+                'Voltage_measured': np.argmax(data['Voltage_measured'] >= 4.2) / len(data['Time']),
+            })
+        elif cycle['type'] == 'discharge':
+            # 提取放电特征
+            features.update({
+                'discharge_duration': data['Time'][-1] - data['Time'][0],
+                'capacity': data['Capacity']  # 取最终放电容量
+            })
+    except KeyError as e:
+        print(f"特征提取错误: {str(e)}")
+    return features
+```
+用于训练的输入特征并不是越多越好，通过实验对比以及pandas的corr()函数分析，我们发现一些特征与SOH相关性较低，因此我们选择一些关键特征，如充电时间、充电电流标准差、放电时间和放电容量，这些特征与SOH的相关性较高，分析结果采用热力图如下：
+![](results/特征相关性分析.png)
 
 考虑阻抗测试数据并不是与充放电周期进行，因此，我们只考虑充放电周期数据,并将相邻的充放电周期数据合并作为一组数据。
 ```python
@@ -146,35 +178,7 @@ scaler = StandardScaler()
 train_df[feature_cols] = scaler.fit_transform(train_df[feature_cols])
 test_df[feature_cols] = scaler.transform(test_df[feature_cols])
 ```
-实验发现，将数据的前一部分用于训练，后一部分用于测试，预测精度高一些。如果采用一组新的电池如B0018号则效果会略微下降，这可能是数据量还是太少的原因，模型泛化能力不足。
 
-**提取数据：**
-```python
-
-def extract_operation_features(cycle):
-    """提取单个操作的特征"""
-    features = {}
-    data = cycle['data']
-    try:
-        if cycle['type'] == 'charge':
-            # 提取充电特征
-            features.update({
-                'cc_time': np.argmax(data['Voltage_measured'] >= 4.2) / len(data['Time']),  # 恒流阶段占比
-                'current_charge_std': np.std(data['Current_measured']),
-                'Voltage_measured': np.argmax(data['Voltage_measured'] >= 4.2) / len(data['Time']),
-            })
-        elif cycle['type'] == 'discharge':
-            # 提取放电特征
-            features.update({
-                'discharge_duration': data['Time'][-1] - data['Time'][0],
-                'capacity': data['Capacity']  # 取最终放电容量
-            })
-    except KeyError as e:
-        print(f"特征提取错误: {str(e)}")
-    return features
-```
-用于训练的输入特征并不是越多越好，通过实验对比以及pandas的corr()函数分析，我们发现一些特征与SOH相关性较低，因此我们选择一些关键特征，如充电时间、充电电流标准差、放电时间和放电容量，这些特征与SOH的相关性较高，分析结果采用热力图如下：
-![](results/特征相关性分析.png)
 
 ## 3. 模型构建
 

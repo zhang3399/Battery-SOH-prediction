@@ -61,9 +61,6 @@ def main():
     train_batt_ids = ['05', '06', '07']  # 划分训练集、测试集数据
     # test_batt_ids = '18'  # 测试完整新电池数据（可选）
 
-    # train_df = df[df['battery_id'].isin(train_batt_ids)].copy()
-    # test_df = df[df['battery_id'].isin(test_batt_ids)].copy()
-
     train_df, test_df, final_test_df = create_hybrid_split(df,
                                                            div_batt=train_batt_ids,
                                                            div_name='battery_id',
