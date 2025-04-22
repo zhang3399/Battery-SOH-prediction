@@ -174,8 +174,7 @@ def extract_operation_features(cycle):
     return features
 ```
 用于训练的输入特征并不是越多越好，通过实验对比以及pandas的corr()函数分析，我们发现一些特征与SOH相关性较低，因此我们选择一些关键特征，如充电时间、充电电流标准差、放电时间和放电容量，这些特征与SOH的相关性较高，分析结果采用热力图如下：
-
-![](/images/特征相关性分析.webp)
+![](results/特征相关性分析.png)
 
 ## 3. 模型构建
 
@@ -237,5 +236,5 @@ RMSE: 0.0090
 MAE: 0.0070
 R²: 0.9838
 ```
-预测结果：
-![](/images/soh_trend_comparison.webp)
+预测结果:
+![](results/soh_trend_comparison.png)
